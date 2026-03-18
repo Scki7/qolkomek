@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  // ЗАМЕНИ ЭТУ ССЫЛКУ НА СВОЮ ИЗ RENDER (которая заканчивается на .onrender.com)
+  baseURL: 'https://qolkomek.onrender.com', 
 });
 
 api.interceptors.request.use((config) => {
