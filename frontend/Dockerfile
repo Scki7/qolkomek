@@ -1,20 +1,26 @@
-# Этап 1: Сборка React приложения
+# 1. Сборка фронтенда
 FROM node:18-alpine AS build
 WORKDIR /app
 
-# Копируем файлы зависимостей
+# Копируем зависимости
 COPY package*.json ./
+
+# Устанавливаем зависимости
 RUN npm install
 
-# Копируем всё остальное и собираем проект
+# Копируем весь проект
 COPY . .
-RUN npm run build
 
-# Этап 2: Раздача готовых файлов через Nginx
+# ХИТРЫЙ ХОД: Даем права на запуск скриптов
+RUN chmod -R +x node_modules/.bin
+
+# Собираем проект (игнорируем ворнинги)
+RUN CI=false npm run build
+
+# 2. Раздача через Nginx
 FROM nginx:stable-alpine
-# Копируем билд из первого этапа в папку Nginx
+# Проверь: если папка после сборки называется build, оставляем так. 
+# Если используешь Vite и папка dist — замени build на dist ниже.
 COPY --from=build /app/build /usr/share/nginx/html
-
-# Пробрасываем порт 80 (стандарт для веба)
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
