@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Autocomplete } from '@react-google-maps/api';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../api';
 
@@ -14,6 +14,9 @@ const mapStyles = [
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
 ];
 
+// ВАЖНО: Вынесено наружу, чтобы избежать ошибки "Loader must not be called again"
+const libraries = ['places'];
+
 export default function MapPage() {
   const [tasks, setTasks] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -21,9 +24,12 @@ export default function MapPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState(searchParams.get('category') || 'All');
+  
+  const autocompleteRef = useRef(null);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_KEY || '',
+    libraries: libraries,
   });
 
   useEffect(() => {
@@ -39,6 +45,23 @@ export default function MapPage() {
     );
   }, []);
 
+  // ИСПРАВЛЕННАЯ ФУНКЦИЯ: Добавлена проверка на существование геометрии
+  const onPlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      
+      if (place && place.geometry && place.geometry.location) {
+        const newPos = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+        };
+        setCenter(newPos);
+      } else {
+        console.log("Autocomplete: Place not found or has no geometry");
+      }
+    }
+  };
+
   const handleCategoryChange = (cat) => {
     setActiveCategory(cat);
     setSelected(null);
@@ -53,14 +76,37 @@ export default function MapPage() {
       <Sidebar />
       <div className="main-content">
         <div className="page-topbar">
-          <span className="page-topbar-title">Task Map</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flex: 1 }}>
+            <span className="page-topbar-title">Task Map</span>
+            
+            {isLoaded && (
+              <Autocomplete
+                onLoad={(ref) => (autocompleteRef.current = ref)}
+                onPlaceChanged={onPlaceChanged}
+              >
+                <input
+                  type="text"
+                  placeholder="Find address..."
+                  onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()} // Предотвращаем перезагрузку
+                  style={{
+                    width: '300px',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    border: '1.5px solid var(--border)',
+                    fontSize: '13px',
+                    outline: 'none',
+                    background: 'var(--bg)'
+                  }}
+                />
+              </Autocomplete>
+            )}
+          </div>
           <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
             {tasksWithCoords.length} tasks on map
           </span>
         </div>
 
         <div className="map-layout">
-          {/* Left panel */}
           <div className="map-panel">
             <div className="map-panel-header">
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: 'var(--text-2)' }}>
@@ -135,7 +181,6 @@ export default function MapPage() {
             </div>
           </div>
 
-          {/* Map */}
           <div className="map-container">
             {!isLoaded ? (
               <div className="loading-wrap">
@@ -178,11 +223,6 @@ export default function MapPage() {
                   >
                     <div style={{ maxWidth: 220, fontFamily: "'DM Sans', sans-serif", padding: '4px 2px' }}>
                       <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: '#151a14' }}>{selected.title}</div>
-                      {selected.description && (
-                        <div style={{ fontSize: 12, color: '#666', marginBottom: 8, lineHeight: 1.5 }}>
-                          {selected.description.slice(0, 80)}{selected.description.length > 80 ? '...' : ''}
-                        </div>
-                      )}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         {selected.category && (
                           <span style={{ fontSize: 11, background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>{selected.category}</span>

@@ -15,6 +15,15 @@ import ChatPage from './pages/ChatPage';
 import Profile from './pages/Profile';
 import MyTasks from './pages/MyTasks';
 import AdminPanel from './pages/AdminPanel';
+const SupportPage = () => (
+  <div style={{padding: '50px', color: 'white', background: '#1a1a1a', minHeight: '100vh'}}>
+    <h1 style={{fontSize: '32px'}}>Support Center</h1>
+    <p>We are here to help you!</p>
+    <div style={{border: '1px solid #333', padding: '20px', marginTop: '20px'}}>
+      <h3>Contact us: support@qolkomek.kz</h3>
+    </div>
+  </div>
+);
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -30,6 +39,10 @@ function AppRoutes() {
       <Route path="/register" element={<Register />} />
       <Route path="/map" element={<MapPage />} />
       <Route path="/tasks/:id" element={<TaskDetail />} />
+      
+      {/* УБРАЛ ЗАЩИТУ: Теперь саппорт откроется в любом случае */}
+      <Route path="/support" element={<SupportPage />} />
+      <Route path="/support/:id" element={<SupportPage />} />  
 
       <Route path="/create-task" element={<ProtectedRoute><CreateTask /></ProtectedRoute>} />
       <Route path="/tasks/:id/status" element={<ProtectedRoute><TaskStatus /></ProtectedRoute>} />

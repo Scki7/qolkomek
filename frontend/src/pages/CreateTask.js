@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, Autocomplete } from '@react-google-maps/api';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import api from '../api';
@@ -13,6 +13,9 @@ const mapStyles = [
   { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
 ];
 
+// ВАЖНО: Выносим за пределы компонента, чтобы избежать повторных загрузок
+const libraries = ['places'];
+
 export default function CreateTask() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -23,8 +26,12 @@ export default function CreateTask() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Реф для поиска
+  const autocompleteRef = useRef(null);
+
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_KEY || '',
+    libraries: libraries, // Добавили libraries здесь
   });
 
   useEffect(() => {
@@ -38,14 +45,27 @@ export default function CreateTask() {
       },
       () => {}
     );
-  }, [user]);
+  }, [user, navigate]);
+
+  // Функция для поиска адреса
+  const onPlaceChanged = () => {
+    const place = autocompleteRef.current.getPlace();
+    if (place.geometry) {
+      const pos = {
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng()
+      };
+      setMarkerPos(pos);
+      setMapCenter(pos);
+      setLocationName(place.formatted_address);
+    }
+  };
 
   const handleMapClick = useCallback((e) => {
     const lat = e.latLng.lat();
     const lng = e.latLng.lng();
     setMarkerPos({ lat, lng });
 
-    // Reverse geocode using Google Maps Geocoder
     if (window.google) {
       const geocoder = new window.google.maps.Geocoder();
       geocoder.geocode({ location: { lat, lng } }, (results, status) => {
@@ -55,8 +75,6 @@ export default function CreateTask() {
           setLocationName(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
         }
       });
-    } else {
-      setLocationName(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
     }
   }, []);
 
@@ -100,7 +118,6 @@ export default function CreateTask() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
-          {/* Form panel */}
           <div style={{ padding: '28px', overflowY: 'auto', borderRight: '1px solid var(--border)', background: 'white' }}>
             {error && <div className="error-banner">{error}</div>}
 
@@ -148,11 +165,22 @@ export default function CreateTask() {
 
             <div className="divider" />
 
-            <div style={{ marginBottom: 8 }}>
-              <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>Location</label>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
-                Click anywhere on the map to set the task location. The address will be detected automatically.
-              </p>
+            {/* ПОИСК АДРЕСА */}
+            <div className="form-group">
+              <label className="form-label">Find Address</label>
+              {isLoaded && (
+                <Autocomplete
+                  onLoad={ref => (autocompleteRef.current = ref)}
+                  onPlaceChanged={onPlaceChanged}
+                >
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Enter address..."
+                    onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+                  />
+                </Autocomplete>
+              )}
             </div>
 
             {markerPos ? (
@@ -161,76 +189,47 @@ export default function CreateTask() {
                   Selected Location
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>{locationName}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                  {markerPos.lat.toFixed(6)}, {markerPos.lng.toFixed(6)}
-                </div>
               </div>
             ) : (
               <div style={{ background: 'var(--bg)', border: '1.5px dashed var(--border)', borderRadius: 10, padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                No location selected — click on the map
+                Click on the map or use search
               </div>
-            )}
-
-            {markerPos && (
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => { setMarkerPos(null); setLocationName(''); }}
-                style={{ marginTop: 8, color: 'var(--text-muted)', fontSize: 12 }}
-              >
-                Clear location
-              </button>
             )}
           </div>
 
-          {/* Map */}
           <div style={{ position: 'relative' }}>
             {!isLoaded ? (
               <div className="loading-wrap"><div className="spinner" /> Loading map...</div>
             ) : (
-              <>
-                <GoogleMap
-                  mapContainerStyle={mapContainerStyle}
-                  center={mapCenter}
-                  zoom={13}
-                  onClick={handleMapClick}
-                  options={{
-                    styles: mapStyles,
-                    disableDefaultUI: false,
-                    zoomControl: true,
-                    streetViewControl: false,
-                    mapTypeControl: false,
-                    fullscreenControl: false,
-                    clickableIcons: false,
-                    cursor: 'crosshair',
-                  }}
-                >
-                  {markerPos && (
-                    <Marker
-                      position={markerPos}
-                      icon={{
-                        path: window.google?.maps?.SymbolPath?.CIRCLE,
-                        fillColor: '#2d6a27',
-                        fillOpacity: 1,
-                        strokeColor: 'white',
-                        strokeWeight: 3,
-                        scale: 10,
-                      }}
-                    />
-                  )}
-                </GoogleMap>
-
-                {/* Map hint overlay */}
-                <div style={{
-                  position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)',
-                  background: 'rgba(20,31,18,0.85)', color: 'white', padding: '8px 16px',
-                  borderRadius: 20, fontSize: 13, fontWeight: 500,
-                  backdropFilter: 'blur(4px)',
-                  pointerEvents: 'none',
-                  whiteSpace: 'nowrap',
-                }}>
-                  Click on the map to set task location
-                </div>
-              </>
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={mapCenter}
+                zoom={13}
+                onClick={handleMapClick}
+                options={{
+                  styles: mapStyles,
+                  disableDefaultUI: false,
+                  zoomControl: true,
+                  streetViewControl: false,
+                  mapTypeControl: false,
+                  fullscreenControl: false,
+                  clickableIcons: false,
+                }}
+              >
+                {markerPos && (
+                  <Marker
+                    position={markerPos}
+                    icon={{
+                      path: window.google?.maps?.SymbolPath?.CIRCLE,
+                      fillColor: '#2d6a27',
+                      fillOpacity: 1,
+                      strokeColor: 'white',
+                      strokeWeight: 3,
+                      scale: 10,
+                    }}
+                  />
+                )}
+              </GoogleMap>
             )}
           </div>
         </div>

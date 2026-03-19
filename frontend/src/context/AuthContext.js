@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (token) {
       api.get('/auth/me')
-        .then(res => setUser(res.data))
+        .then(res => setUser({ ...res.data, id: Number(res.data.id) }))
         .catch(() => localStorage.removeItem('token'))
         .finally(() => setLoading(false));
     } else {
@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = (token, userData) => {
     localStorage.setItem('token', token);
-    setUser(userData);
+    setUser({ ...userData, id: Number(userData.id) });
   };
 
   const logout = () => {
