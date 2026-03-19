@@ -1,15 +1,32 @@
+// backend/db.js — ПОЛНОСТЬЮ ЗАМЕНИТЬ ФАЙЛ
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-// ... дальше твой код с initDB ...
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const initDB = async () => {
   try {
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS support_tickets (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        subject VARCHAR(255) NOT NULL,
+        category VARCHAR(50) DEFAULT 'general',
+        status VARCHAR(20) DEFAULT 'open',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+    );
+
+      CREATE TABLE IF NOT EXISTS support_messages (
+        id SERIAL PRIMARY KEY,
+        ticket_id INTEGER REFERENCES support_tickets(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        is_admin BOOLEAN DEFAULT FALSE,
+        is_read_by_admin BOOLEAN DEFAULT FALSE,
+        is_read_by_user BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
+    );
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(100) NOT NULL,
@@ -35,6 +52,7 @@ const initDB = async () => {
         status VARCHAR(20) DEFAULT 'open',
         customer_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         helper_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        stripe_payment_intent_id TEXT,
         created_at TIMESTAMP DEFAULT NOW(),
         completed_at TIMESTAMP
       );
@@ -77,6 +95,17 @@ const initDB = async () => {
         status VARCHAR(20) DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        body TEXT,
+        link VARCHAR(255),
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     console.log('✅ Database initialized successfully');
   } catch (err) {
@@ -84,4 +113,15 @@ const initDB = async () => {
   }
 };
 
-module.exports = { pool, initDB };
+const createNotification = async (userId, type, title, body, link) => {
+  try {
+    await pool.query(
+      `INSERT INTO notifications (user_id, type, title, body, link) VALUES ($1,$2,$3,$4,$5)`,
+      [userId, type, title, body, link]
+    );
+  } catch (err) {
+    console.error('Notification error:', err.message);
+  }
+};
+
+module.exports = { pool, initDB, createNotification };
