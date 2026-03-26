@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
+import AIHelperRecommend from '../components/AIHelperRecommend'; // 🆕
 import api from '../api';
 
 export default function TaskDetail() {
@@ -155,6 +156,17 @@ export default function TaskDetail() {
                   <button className="btn btn-primary" onClick={handleRespond} disabled={actionLoading}>
                     {actionLoading ? 'Sending...' : 'Send Offer'}
                   </button>
+                </div>
+              )}
+
+              {/* 🆕 AI рекомендации — показываем только заказчику когда задача открыта */}
+              {isOwner && task?.status === 'open' && (
+                <div className="fade-up fade-up-1" style={{ marginBottom: 4 }}>
+                  <AIHelperRecommend
+                    taskTitle={task.title}
+                    taskDescription={task.description}
+                    taskCategory={task.category}
+                  />
                 </div>
               )}
 
