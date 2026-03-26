@@ -11,6 +11,8 @@ const ratingRoutes = require('./routes/ratings');
 const userRoutes = require('./routes/users');
 const notificationRoutes = require('./routes/notifications');
 const supportRoutes = require('./routes/support');
+const aiRoutes = require('./routes/ai');         // 🆕
+const skillsRoutes = require('./routes/skills'); // 🆕
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +27,8 @@ app.use('/api/ratings', ratingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/ai', aiRoutes);         // 🆕
+app.use('/api/skills', skillsRoutes); // 🆕
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
