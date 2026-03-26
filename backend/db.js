@@ -1,4 +1,3 @@
-// backend/db.js — ПОЛНОСТЬЮ ЗАМЕНИТЬ ФАЙЛ
 const { Pool } = require('pg');
 require('dotenv').config();
 
@@ -7,37 +6,25 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const initDB = async () => {
   try {
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS support_tickets (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        subject VARCHAR(255) NOT NULL,
-        category VARCHAR(50) DEFAULT 'general',
-        status VARCHAR(20) DEFAULT 'open',
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-    );
-
-      CREATE TABLE IF NOT EXISTS support_messages (
-        id SERIAL PRIMARY KEY,
-        ticket_id INTEGER REFERENCES support_tickets(id) ON DELETE CASCADE,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        content TEXT NOT NULL,
-        is_admin BOOLEAN DEFAULT FALSE,
-        is_read_by_admin BOOLEAN DEFAULT FALSE,
-        is_read_by_user BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT NOW()
-    );
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(100) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         avatar_url TEXT,
+        bio TEXT DEFAULT '',
         rating DECIMAL(3,2) DEFAULT 0,
         rating_count INTEGER DEFAULT 0,
         is_blocked BOOLEAN DEFAULT FALSE,
         role VARCHAR(20) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS helper_skills (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        skill VARCHAR(100) NOT NULL,
+        UNIQUE(user_id, skill)
       );
 
       CREATE TABLE IF NOT EXISTS tasks (
@@ -106,6 +93,29 @@ const initDB = async () => {
         is_read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS support_tickets (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        subject VARCHAR(255) NOT NULL,
+        category VARCHAR(50) DEFAULT 'general',
+        status VARCHAR(20) DEFAULT 'open',
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS support_messages (
+        id SERIAL PRIMARY KEY,
+        ticket_id INTEGER REFERENCES support_tickets(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        is_admin BOOLEAN DEFAULT FALSE,
+        is_read_by_admin BOOLEAN DEFAULT FALSE,
+        is_read_by_user BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT '';
     `);
     console.log('✅ Database initialized successfully');
   } catch (err) {
